@@ -1,0 +1,21 @@
+.{
+    .name = .oauth2_examples,
+    .version = "0.0.0",
+    .fingerprint = 0x652847298b0c114a,
+    .minimum_zig_version = "0.14.1",
+    .dependencies = .{
+        .httpz = .{
+            .url = "git+https://github.com/karlseguin/http.zig?ref=master#d02a1b80749e7bcf34f9b016992f2a9929d7c4ab",
+            .hash = "httpz-0.0.0-PNVzrIy3BgAx-fYpwUmG1krFY8FLS2-ZcpuH_GtpBpAI",
+        },
+        .oauth2 = .{
+            .url = "../",
+            .hash = "oauth2-1.0.0-icZTH9NwAADnIiGL2WVMNM_pKqzAkBNqnk40xIExEdkp",
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}
