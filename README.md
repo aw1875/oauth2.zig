@@ -68,7 +68,7 @@ pub fn main() !void {
     var session_store = std.StringHashMap(SessionData).init(allocator);
     defer session_store.deinit();
 
-    var app = App{ .google = &oauth2_provider, .session_store = &session_store };
+    var app = App{ .oauth = &oauth2_provider, .session_store = &session_store };
 
     var server = try httpz.Server(*App).init(allocator, .{ .port = 3000 }, &app);
     defer {
@@ -153,7 +153,7 @@ fn handleCallback(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         return res.setStatus(.bad_request);
     }
 
-    return res.json(try app.oauth.validateAuthorizationCode(GoogleTokenResponse, res.arena, "https://oauth2.googleapis.com/token", code, code_verifier_cookie), .{});
+    return res.json(try app.oauth.validateAuthorizationCode(GoogleTokenResponse, res.arena, "https://oauth2.googleapis.com/token", code, session.code_verifier), .{});
 }
 
 // This is the response we expect to get back when validating the authorization code
