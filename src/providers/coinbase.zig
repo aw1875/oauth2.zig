@@ -37,12 +37,15 @@ pub fn createAuthorizationUrl(
     self: *const CoinbaseProvider,
     allocator: std.mem.Allocator,
     state: []const u8,
+    code_verifier: []const u8,
     scopes: []const []const u8,
 ) ![]const u8 {
-    return self.oauth2_provider.createAuthorizationUrl(
+    return self.oauth2_provider.createAuthorizationUrlWithPKCE(
         allocator,
         AUTHORIZATION_ENDPOINT,
         state,
+        "S256",
+        code_verifier,
         scopes,
     );
 }
@@ -51,13 +54,14 @@ pub fn validateAuthorizationCode(
     self: *const CoinbaseProvider,
     allocator: std.mem.Allocator,
     code: []const u8,
+    code_verifier: ?[]const u8,
 ) !CoinbaseTokenResponse {
     return self.oauth2_provider.validateAuthorizationCode(
         CoinbaseTokenResponse,
         allocator,
         TOKEN_ENDPOINT,
         code,
-        null,
+        code_verifier,
     );
 }
 

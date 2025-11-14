@@ -1,18 +1,16 @@
-const std = @import("std");
-
 // Util functions
-pub const generateStateOrCodeVerifier = @import("crypto.zig").generateStateOrCodeVerifier;
+pub const createStateNonce = @import("crypto.zig").createStateNonce;
 
 // OAuth2 Providers
-pub const BattleNetProvider = @import("oauth2/providers/battlenet.zig");
-pub const CoinbaseProvider = @import("oauth2/providers/coinbase.zig");
-pub const DiscordProvider = @import("oauth2/providers/discord.zig");
-pub const GitHubProvider = @import("oauth2/providers/github.zig");
-pub const GoogleProvider = @import("oauth2/providers/google.zig");
-pub const LinkedInProvider = @import("oauth2/providers/linkedin.zig");
+pub const BattleNetProvider = @import("providers/battlenet.zig");
+pub const CoinbaseProvider = @import("providers/coinbase.zig");
+pub const DiscordProvider = @import("providers/discord.zig");
+pub const GoogleProvider = @import("providers/google.zig");
+pub const GitHubProvider = @import("providers/github.zig");
+pub const LinkedInProvider = @import("providers/linkedin.zig");
 
 // Base OAuth2 provider for custom implementations
-pub const BaseOAuth2Provider = @import("oauth2/oauth2.zig");
+pub const BaseOAuth2Provider = @import("oauth2.zig");
 
 test {
     _ = @import("utils.zig");

@@ -1,51 +1,9 @@
-# oauth2.zig
-
-A light weight oauth2 wrapper for zig. Contains implementations for the authorization code flow with no external dependencies.
-
-## Installation
-
-Add oauth2.zig as a dependency to your project with:
-
-```sh
-zig fetch --save git+https://github.com/aw1875/oauth2.zig
-```
-
-Then, add it as a dependency in your `build.zig` file:
-
-```zig
-const oauth2 = b.dependency("oauth2", .{ .target = target, .optimize = optimize });
-exe.root_module.addImport("oauth2", oauth2.module("oauth2"));
-```
-
-## Supported Providers
-
-This is a work in progress, but currently supports the following providers:
-- [BattleNet](https://develop.battle.net/documentation/guides/using-oauth)
-- [Coinbase](https://docs.cdp.coinbase.com/coinbase-app/docs/auth/oauth-integration)
-- [Discord](https://discord.com/developers/docs/topics/oauth2)
-- [GitHub](https://docs.github.com/en/developers/apps/building-oauth-apps/authorizing-oauth-apps)
-- [Google](https://developers.google.com/identity/protocols/oauth2)
-- [LinkedIn](https://docs.microsoft.com/en-us/linkedin/shared/authentication/authorization-code-flow)
-
-The BaseOAuth2Provider is also exposed, which allows you to create your own custom provider by directly accessing the underlying OAuth2 functions used by each provider. See [CustomProvider](#custom-provider)
-
-## Examples
-
-Check out the [examples folder](./examples) for a few examples of how to use the library with different providers.
-
-#### Custom Provider
-
-We'll use Google here for clarity, but the `BaseOAuth2Provider` just exposes all the underlying functions used by any given individual provider.
-One important thing to note, depending on your provider you may need to use the `createAuthorizationUrlWithPKCE` version when creating your authorization URL.
-The `code_verifier` is only required for providers that require this (Google is a great example):
-
-```zig
 const std = @import("std");
 
 const httpz = @import("httpz");
 const oauth2 = @import("oauth2");
 
-const CustomProvider = oauth2.BaseOAuth2Provider;
+const GoogleProvider = oauth2.GoogleProvider;
 
 const SessionData = struct {
     state: []const u8,
@@ -58,9 +16,9 @@ pub fn main() !void {
     const allocator = gpa.allocator();
     defer if (gpa.deinit() != .ok) @panic("Failed to deinitialize allocator");
 
-    var oauth2_provider = try CustomProvider.init(allocator, .{
-        .client_id = "<google_client_id>",
-        .client_secret = "<google_client_secret>",
+    var oauth2_provider = try GoogleProvider.init(allocator, .{
+        .client_id = "<your_client_id>",
+        .client_secret = "<your_client_secret>",
         .redirect_uri = "http://localhost:3000/api/v1/oauth/google/callback",
     });
     defer oauth2_provider.deinit();
@@ -68,7 +26,7 @@ pub fn main() !void {
     var session_store = std.StringHashMap(SessionData).init(allocator);
     defer session_store.deinit();
 
-    var app = App{ .oauth = &oauth2_provider, .session_store = &session_store };
+    var app = App{ .google = &oauth2_provider, .session_store = &session_store };
 
     var server = try httpz.Server(*App).init(allocator, .{ .port = 3000 }, &app);
     defer {
@@ -80,25 +38,19 @@ pub fn main() !void {
     router.get("/api/v1/oauth/google", handleLogin, .{});
     router.get("/api/v1/oauth/google/callback", handleCallback, .{});
 
+    std.log.info("Running Google example project on port 3000", .{});
     try server.listen();
 }
 
 const App = struct {
-    oauth: *CustomProvider,
+    google: *GoogleProvider,
     session_store: *std.StringHashMap(SessionData),
 };
 
 fn handleLogin(app: *App, _: *httpz.Request, res: *httpz.Response) !void {
     const state = try oauth2.createStateNonce(res.arena);
     const code_verifier = try oauth2.createStateNonce(res.arena);
-    const url = try app.oauth.createAuthorizationUrlWithPKCE(
-        res.arena,
-        "https://accounts.google.com/o/oauth2/v2/auth",
-        state,
-        "S256",
-        code_verifier,
-        &[_][]const u8{ "email", "profile", "openid" },
-    );
+    const url = try app.google.createAuthorizationUrl(res.arena, state, code_verifier, &[_][]const u8{ "email", "profile", "openid" });
 
     const session_id = try oauth2.createStateNonce(res.arena);
     try app.session_store.put(session_id, SessionData{
@@ -153,16 +105,35 @@ fn handleCallback(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         return res.setStatus(.bad_request);
     }
 
-    return res.json(try app.oauth.validateAuthorizationCode(GoogleTokenResponse, res.arena, "https://oauth2.googleapis.com/token", code, session.code_verifier), .{});
+    const tokens = try app.google.validateAuthorizationCode(res.arena, code, session_data.value.code_verifier);
+
+    const user_profile = try getUserProfile(res.arena, "https://www.googleapis.com/oauth2/v3/userinfo", tokens.access_token);
+    defer user_profile.deinit();
+
+    return res.json(user_profile.value, .{});
 }
 
-// This is the response we expect to get back when validating the authorization code
-pub const GoogleTokenResponse = struct {
-    access_token: []const u8,
-    expires_in: i64,
-    refresh_token: ?[]const u8 = null,
-    scope: []const u8,
-    token_type: []const u8,
-    id_token: []const u8,
-};
-```
+fn getUserProfile(allocator: std.mem.Allocator, url: []const u8, access_token: []const u8) !std.json.Parsed(std.json.Value) {
+    var http_client = std.http.Client{ .allocator = allocator };
+    defer http_client.deinit();
+
+    var response_storage = std.ArrayList(u8).init(allocator);
+    defer response_storage.deinit();
+
+    const response = try http_client.fetch(.{
+        .location = .{ .url = url },
+        .method = .GET,
+        .headers = .{
+            .authorization = .{ .override = try std.fmt.allocPrint(allocator, "Bearer {s}", .{access_token}) },
+        },
+        .extra_headers = &[_]std.http.Header{
+            .{ .name = "User-Agent", .value = "oauth2.zig" },
+            .{ .name = "Accept", .value = "application/json" },
+        },
+        .response_storage = .{ .dynamic = &response_storage },
+    });
+
+    if (response.status != .ok) return error.HttpError;
+
+    return try std.json.parseFromSlice(std.json.Value, allocator, response_storage.items, .{ .allocate = .alloc_always, .ignore_unknown_fields = true });
+}

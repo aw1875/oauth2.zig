@@ -1,8 +1,8 @@
 const std = @import("std");
 
-const cryto = @import("../crypto.zig");
-const HttpClient = @import("../http/client.zig");
-const utils = @import("../utils.zig");
+const cryto = @import("crypto.zig");
+const HttpClient = @import("http.zig");
+const utils = @import("utils.zig");
 
 pub const OAuth2ProviderArgs = struct {
     client_id: []const u8,
