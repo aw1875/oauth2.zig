@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const cryto = @import("crypto.zig");
+const crypto = @import("crypto.zig");
 const HttpClient = @import("http.zig");
 const utils = @import("utils.zig");
 
@@ -71,7 +71,7 @@ pub fn createAuthorizationUrlWithPKCE(
             try utils.urlEncode(allocator, self.redirect_uri, .url),
             try utils.urlEncode(allocator, state, .url),
             code_challenge_method,
-            try utils.urlEncode(allocator, try cryto.sha256Base64UrlSafe(allocator, code_verifier), .url),
+            try utils.urlEncode(allocator, try crypto.sha256Base64UrlSafe(allocator, code_verifier), .url),
             try utils.urlEncode(allocator, try std.mem.join(allocator, " ", scopes), .url),
         },
     );
