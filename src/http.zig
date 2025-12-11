@@ -17,8 +17,8 @@ pub fn deinit(self: *HttpClient) void {
 }
 
 pub fn post(self: *HttpClient, comptime R: type, url: []const u8, body_data: []const u8, auth: []const u8) !if (R == void) std.http.Status else std.json.Parsed(R) {
-    var response_storage = std.ArrayList(u8).init(self.allocator);
-    defer response_storage.deinit();
+    var body_writer: std.Io.Writer.Allocating = .init(self.allocator);
+    defer body_writer.deinit();
 
     const response = try self._client.fetch(.{
         .location = .{ .url = url },
@@ -32,7 +32,7 @@ pub fn post(self: *HttpClient, comptime R: type, url: []const u8, body_data: []c
             .{ .name = "User-Agent", .value = "oauth2.zig" },
             .{ .name = "Accept", .value = "application/json" },
         },
-        .response_storage = .{ .dynamic = &response_storage },
+        .response_writer = &body_writer.writer,
     });
 
     if (R == void) return response.status;
@@ -41,5 +41,29 @@ pub fn post(self: *HttpClient, comptime R: type, url: []const u8, body_data: []c
         return error.HttpError;
     }
 
-    return try std.json.parseFromSlice(R, self.allocator, response_storage.items, .{ .allocate = .alloc_always, .ignore_unknown_fields = true });
+    const body = try body_writer.toOwnedSlice();
+    defer self.allocator.free(body);
+
+    return try std.json.parseFromSlice(R, self.allocator, body, .{ .allocate = .alloc_always, .ignore_unknown_fields = true });
+}
+
+test "HttpClient POST request" {
+    const allocator = std.testing.allocator;
+
+    var client = try HttpClient.init(allocator);
+    defer client.deinit();
+
+    const url = "https://postman-echo.com/post";
+    const body = "key=value";
+
+    const ResponseBody = struct {
+        form: struct {
+            key: []const u8,
+        },
+    };
+
+    const response = try client.post(ResponseBody, url, body, "Bearer testtoken");
+    defer response.deinit();
+
+    try std.testing.expect(std.mem.eql(u8, response.value.form.key, "value"));
 }

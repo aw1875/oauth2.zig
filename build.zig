@@ -10,7 +10,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    const unit_tests = b.addTest(.{ .root_source_file = oauth2.root_source_file });
+    const unit_tests = b.addTest(.{ .root_module = oauth2 });
     const run_unit_tests = b.addRunArtifact(unit_tests);
 
     const test_step = b.step("test", "Run unit tests against the daemon");

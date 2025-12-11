@@ -117,8 +117,8 @@ fn getUserProfile(allocator: std.mem.Allocator, url: []const u8, access_token: [
     var http_client = std.http.Client{ .allocator = allocator };
     defer http_client.deinit();
 
-    var response_storage = std.ArrayList(u8).init(allocator);
-    defer response_storage.deinit();
+    var body_writer: std.Io.Writer.Allocating = .init(allocator);
+    defer body_writer.deinit();
 
     const response = try http_client.fetch(.{
         .location = .{ .url = url },
@@ -130,10 +130,13 @@ fn getUserProfile(allocator: std.mem.Allocator, url: []const u8, access_token: [
             .{ .name = "User-Agent", .value = "oauth2.zig" },
             .{ .name = "Accept", .value = "application/json" },
         },
-        .response_storage = .{ .dynamic = &response_storage },
+        .response_writer = &body_writer.writer,
     });
 
     if (response.status != .ok) return error.HttpError;
 
-    return try std.json.parseFromSlice(std.json.Value, allocator, response_storage.items, .{ .allocate = .alloc_always, .ignore_unknown_fields = true });
+    const body = try body_writer.toOwnedSlice();
+    defer allocator.free(body);
+
+    return try std.json.parseFromSlice(std.json.Value, allocator, body, .{ .allocate = .alloc_always, .ignore_unknown_fields = true });
 }

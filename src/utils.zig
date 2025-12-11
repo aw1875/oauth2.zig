@@ -1,21 +1,22 @@
 const std = @import("std");
 
 pub fn urlEncode(allocator: std.mem.Allocator, input: []const u8, mode: enum { url, form }) ![]const u8 {
-    var out = std.ArrayList(u8).init(allocator);
-    defer out.deinit();
+    var out: std.ArrayList(u8) = .empty;
+    defer out.deinit(allocator);
 
     for (input) |c| {
         switch (c) {
-            'a'...'z', 'A'...'Z', '0'...'9', '-', '_', '.', '~' => try out.writer().writeByte(c),
+            // 'a'...'z', 'A'...'Z', '0'...'9', '-', '_', '.', '~' => try out.writer().writeByte(c),
+            'a'...'z', 'A'...'Z', '0'...'9', '-', '_', '.', '~' => try out.append(allocator, c),
             ' ' => switch (mode) {
-                .url => try out.writer().print("%{X:0>2}", .{c}),
-                .form => try out.writer().writeByte('+'),
+                .url => try out.print(allocator, "%{X:0>2}", .{c}),
+                .form => try out.append(allocator, '+'),
             },
-            else => try out.writer().print("%{X:0>2}", .{c}),
+            else => try out.print(allocator, "%{X:0>2}", .{c}),
         }
     }
 
-    return out.toOwnedSlice();
+    return out.toOwnedSlice(allocator);
 }
 
 test "urlEncode in form mode" {
@@ -52,12 +53,12 @@ test "urlEncode unreserved characters" {
 }
 
 pub fn formEncode(allocator: std.mem.Allocator, data: std.StringHashMap([]const u8)) ![]const u8 {
-    var out = std.ArrayList(u8).init(allocator);
-    defer out.deinit();
+    var out: std.ArrayList(u8) = .empty;
+    defer out.deinit(allocator);
 
     var iter = data.iterator();
     var first = true;
-    var writer = out.writer();
+    // var writer = out.writer();
 
     while (iter.next()) |entry| {
         const key = entry.key_ptr.*;
@@ -71,15 +72,15 @@ pub fn formEncode(allocator: std.mem.Allocator, data: std.StringHashMap([]const 
         }
 
         if (!first) {
-            try writer.writeByte('&');
+            try out.append(allocator, '&');
         } else {
             first = false;
         }
 
-        try writer.print("{s}={s}", .{ encoded_key, encoded_value });
+        try out.print(allocator, "{s}={s}", .{ encoded_key, encoded_value });
     }
 
-    return out.toOwnedSlice();
+    return out.toOwnedSlice(allocator);
 }
 
 test "formEncode encodes single key-value pair" {

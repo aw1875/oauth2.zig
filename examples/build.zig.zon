@@ -5,12 +5,12 @@
     .minimum_zig_version = "0.14.1",
     .dependencies = .{
         .httpz = .{
-            .url = "git+https://github.com/karlseguin/http.zig?ref=master#d02a1b80749e7bcf34f9b016992f2a9929d7c4ab",
-            .hash = "httpz-0.0.0-PNVzrIy3BgAx-fYpwUmG1krFY8FLS2-ZcpuH_GtpBpAI",
+            .url = "git+https://github.com/karlseguin/http.zig#1c0ec3751c53e276d5e0c42b6d5481e72d9d1971",
+            .hash = "httpz-0.0.0-PNVzrEktBwCzPoiua-S8LAYo2tILqczm3tSpneEzLQ9L",
         },
         .oauth2 = .{
             .url = "../",
-            .hash = "oauth2-1.0.0-icZTH9NwAADnIiGL2WVMNM_pKqzAkBNqnk40xIExEdkp",
+            .hash = "oauth2-1.0.0-icZTH-FzAAByUZP9w-xrX54o79HfgjJ9UDaQ1RASJ6gM",
         },
     },
     .paths = .{
